@@ -5,7 +5,7 @@
  
 #include <Wire.h>
 #include <Adafruit_GFX.h>
-#include "Adafruit_LEDBackpack.h"
+#include <Adafruit_LEDBackpack.h>
 #include <ESP8266WiFi.h>
 #include <time.h>
 #include <aREST.h>
@@ -36,6 +36,7 @@ const int buzzerPin = 15;
 const int buttonPin = 13;
 
 Alarm alarms[] = {
+//Alarm(memoryLocationStart)
   Alarm(0),
   Alarm(4),
   Alarm(8)
@@ -74,18 +75,19 @@ void setupWiFi() {
     Serial.print(".");
     delay(500);
   }
-  Serial.println("\nConnected to LAN. Starting server...");
+  Serial.println("\nConnected to LAN.");
 }
 
 void setupServer() {
+  Serial.println("Starting server...");
   server.begin();
   Serial.println("Server started");
   Serial.println(WiFi.localIP());
 }
 
 void setupRest() {
-  rest.set_id("esp123");
-  rest.set_name("ESP8266");
+  rest.set_id("esp001");
+  rest.set_name("EspAlarmClock");
   rest.function("setbrightness", httpSetBrightness);
   rest.function("alarmhour", httpSetAlarmHour);
   rest.function("alarmminute", httpSetAlarmMinute);
@@ -138,7 +140,7 @@ int httpSetAlarmHour(String params) {
   Serial.println(params);
   HttpAlarmParams alarmParams = getHttpAlarmParams(params);
   if (alarmParams.failed) {
-    Serial.print("HTTP SetAlarmHour failed");
+    Serial.println("HTTP SetAlarmHour failed");
     return -1;
   }
   int hour = alarmParams.value;
@@ -181,7 +183,6 @@ int httpSetAlarmEnabled(String params) {
 }
 
 byte* getSeparatedList(char sep, String str) {
-  Serial.println("getSeparatedList");
   int numItems = 1;
   int lastIndex = 0;
   int index;
@@ -271,7 +272,7 @@ void syncTime() {
   }
 
   updateTime();
-  
+
   Serial.println("Time synced.");
 }
 
@@ -354,4 +355,3 @@ void loop() {
   loopServer();
   delay(buzzing ? 10 : 100);
 }
-

@@ -1,6 +1,10 @@
 /*
  * Author: Stephen Leitnick
  * Date: November 2017
+ *
+ * AlarmSound is used to inform the Alarm at what level
+ * the buzzer should currently be set. It does this by
+ * making use of any given AlarmSoundFragments.
  */
 
 #include "AlarmSound.h"
@@ -30,4 +34,3 @@ void AlarmSound::reset() {
   curFragmentIndex = 0;
   lastFragmentStart = millis();
 }
-

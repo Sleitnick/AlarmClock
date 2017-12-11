@@ -1,6 +1,12 @@
 /*
  * Author: Stephen Leitnick
  * Date: November 2017
+ *
+ * An Alarm object manages a single alarm at
+ * a given time. It informs the main program
+ * if the alarm should be buzzing, and can
+ * be told to be silenced or disabled. The
+ * alarm time is persistent using EEPROM.
  */
 
 #include "Alarm.h"
@@ -113,4 +119,3 @@ void Alarm::save() {
   EEPROM.write(memLoc + 2, enabled ? 0x1 : 0x0);
   EEPROM.commit();
 }
-

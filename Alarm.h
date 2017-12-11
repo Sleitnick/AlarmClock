@@ -1,6 +1,12 @@
 /*
  * Author: Stephen Leitnick
  * Date: November 2017
+ *
+ * An Alarm object manages a single alarm at
+ * a given time. It informs the main program
+ * if the alarm should be buzzing, and can
+ * be told to be silenced or disabled. The
+ * alarm time is persistent using EEPROM.
  */
 
 #include <Arduino.h>

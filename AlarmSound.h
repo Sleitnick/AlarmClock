@@ -1,6 +1,10 @@
 /*
  * Author: Stephen Leitnick
  * Date: November 2017
+ *
+ * AlarmSound is used to inform the Alarm at what level
+ * the buzzer should currently be set. It does this by
+ * making use of any given AlarmSoundFragments.
  */
 
 #include <Arduino.h>
