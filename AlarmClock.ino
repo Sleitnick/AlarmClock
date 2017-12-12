@@ -27,6 +27,8 @@ uint16_t minute = 0;
 int dst = 0;
 int timezone = -5;
 
+bool isDisplayOn = true;
+
 int matrixBrightness = 15;
 String matrixBrightnessStr = String(matrixBrightness);
 
@@ -271,8 +273,13 @@ void syncTime() {
     delay(10);
   }
 
+<<<<<<< HEAD
+  updateTime(true);
+  
+=======
   updateTime();
 
+>>>>>>> 5ecc63fda017df60c000947c5ea9c18afbe3805f
   Serial.println("Time synced.");
 }
 
@@ -293,14 +300,18 @@ struct tm* getTimeInfo() {
   return timeinfo;
 }
 
-void updateTime() {
+void updateTime(bool forceWrite) {
   uint16_t lastHour = hour;
   uint16_t lastMin = minute;
   struct tm *timeinfo = getTimeInfo();
   hour = timeinfo->tm_hour;
   minute = timeinfo->tm_min;
-  if (lastHour != hour || lastMin != minute) {
-    writeTime();
+  if (forceWrite || (lastHour != hour || lastMin != minute)) {
+    if (isDisplayOn) {
+      writeTime();
+    } else {
+      clearScreen();
+    }
   }
 }
 
@@ -349,9 +360,20 @@ void loopServer() {
 
 bool btnDown = false;
 void loop() {
+  bool wasDown = btnDown;
   btnDown = (digitalRead(buttonPin) == HIGH);
-  updateTime();
   bool buzzing = updateAlarms(btnDown);
+  if (!buzzing && btnDown && !wasDown) {
+    isDisplayOn = !isDisplayOn;
+    updateTime(true);
+  } else {
+    if (buzzing && !isDisplayOn) {
+      isDisplayOn = true;
+      updateTime(true);
+    } else {
+      updateTime(false);
+    }
+  }
   loopServer();
   delay(buzzing ? 10 : 100);
 }
