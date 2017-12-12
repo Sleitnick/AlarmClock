@@ -272,14 +272,9 @@ void syncTime() {
   while (!time(nullptr)) {
     delay(10);
   }
-
-<<<<<<< HEAD
-  updateTime(true);
   
-=======
-  updateTime();
+  updateTime(true);
 
->>>>>>> 5ecc63fda017df60c000947c5ea9c18afbe3805f
   Serial.println("Time synced.");
 }
 
