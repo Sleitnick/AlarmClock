@@ -10,16 +10,11 @@
 class SimpleServer {
 public:
 	WiFiServer server;
-	SimpleServer::SimpleServer(int port);
+	SimpleServer(uint16_t port);
+	void begin();
 	void handle();
-	void SimpleServer::get(String path, void (&f)(HttpRequest req, HttpResponse res));
+	void get(String path, void (&f)(HttpRequest req, HttpResponse res));
 };
 
 
 #endif
-
-
-
-app.on((req, res, next) -> {
-
-});

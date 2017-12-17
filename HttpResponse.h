@@ -4,7 +4,7 @@
 
 class HttpResponse {
 public:
-	HttpResponse::HttpResponse();
+	HttpResponse();
 };
 
 

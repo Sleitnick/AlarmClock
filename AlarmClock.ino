@@ -15,7 +15,7 @@
 #include "SimpleServer.h"
 // Network.h simply defines NETWORK_SSID and NETWORK_PSK
 
-#define SERVER_PORT 80
+const uint16_t SERVER_PORT = 80;
 
 Adafruit_7segment matrix = Adafruit_7segment();
 aREST rest = aREST();
@@ -89,7 +89,8 @@ void setupWiFi() {
 
 void setupServer() {
 	Serial.println("Starting server...");
-	server.begin();
+	//server.begin();
+	simpleServer.begin();
 	Serial.println("Server started");
 	Serial.println(WiFi.localIP());
 }
