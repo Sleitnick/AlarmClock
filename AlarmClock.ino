@@ -2,7 +2,7 @@
  * Author: Stephen Leitnick
  * Date: November 2017
  */
- 
+
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_LEDBackpack.h>
@@ -10,6 +10,7 @@
 #include <time.h>
 #include <aREST.h>
 #include "Alarm.h"
+#include "HttpRequest.h"
 #include "Network.h"
 // Network.h simply defines NETWORK_SSID and NETWORK_PSK
 
@@ -55,6 +56,8 @@ typedef struct HttpAlarmParams {
 
 void setup() {
   Serial.begin(115200);
+  delay(3000);
+  Serial.println("Setting up now");
   pinMode(buzzerPin, OUTPUT);
   pinMode(buttonPin, INPUT);
   setupMatrixDisplay();
@@ -65,9 +68,11 @@ void setup() {
 }
 
 void setupMatrixDisplay() {
+  Serial.println("Setting up matrix display...");
   matrix.begin(0x70);
   matrix.setBrightness(matrixBrightness);
   clearScreen();
+  Serial.println("Matrix display ready.");
 }
 
 void setupWiFi() {
@@ -75,7 +80,7 @@ void setupWiFi() {
   WiFi.begin(NETWORK_SSID, NETWORK_PSK);
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
-    delay(500);
+    delay(1000);
   }
   Serial.println("\nConnected to LAN.");
 }
@@ -88,6 +93,7 @@ void setupServer() {
 }
 
 void setupRest() {
+  Serial.println("Setting up REST server settings...");
   rest.set_id("esp001");
   rest.set_name("EspAlarmClock");
   rest.function("setbrightness", httpSetBrightness);
@@ -97,6 +103,7 @@ void setupRest() {
   rest.function("alarmset", httpSetAlarm);
   rest.variable("brightness", &matrixBrightnessStr);
   setAlarmsRestVariable();
+  Serial.println("REST server settings set.");
 }
 
 HttpAlarmParams getHttpAlarmParams(String params) {
@@ -126,13 +133,16 @@ HttpAlarmParams getHttpAlarmParams(String params) {
 }
 
 int httpSetBrightness(String amount) {
+  Serial.print("HTTP SetBrightness: " + amount + ": ");
   int b = amount.toInt();
   if (b == 0 && amount != "0") return -1;
   b = (b < 0 ? 0 : b > 15 ? 15 : b);
+  Serial.println(b);
   matrix.setBrightness(b);
   matrixBrightness = b;
   matrixBrightnessStr = String(b);
   rest.variable("brightness", &matrixBrightnessStr);
+  Serial.println("HTTP SetBrightness completed.");
   return b;
 }
 
@@ -272,7 +282,7 @@ void syncTime() {
   while (!time(nullptr)) {
     delay(10);
   }
-  
+
   updateTime(true);
 
   Serial.println("Time synced.");
@@ -349,8 +359,22 @@ void writeTime() {
 
 void loopServer() {
   WiFiClient client = server.available();
-  if (!client || !client.available()) return;
-  rest.handle(client);
+  if (client.available()) {
+
+    rest.handle(client);
+
+/*
+    HttpRequest req(client);
+
+    String contentType = req.getHeaderValue("Content-Type");
+    Serial.print("Retrieved Content-Type: ");
+    Serial.println(contentType);
+
+    // TODO: Create HttpResponse class
+*/
+    client.flush();
+
+  }
 }
 
 bool btnDown = false;
@@ -370,5 +394,6 @@ void loop() {
     }
   }
   loopServer();
+  //Serial.println(ESP.getFreeHeap(), DEC);
   delay(buzzing ? 10 : 100);
 }
