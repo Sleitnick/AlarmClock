@@ -8,9 +8,9 @@
  */
 
 class AlarmSoundFragment {
-  public:
-    const int value;
-    const int duration;
-    AlarmSoundFragment(int toneValue, int toneDuration);
+	public:
+		const int value;
+		const int duration;
+		AlarmSoundFragment(int toneValue, int toneDuration);
 };
 
