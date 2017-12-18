@@ -25,8 +25,6 @@ aREST rest = aREST();
 //SimpleServer simpleServer(SERVER_PORT);
 ESP8266WebServer server(SERVER_PORT);
 
-const char* timeHost = "time.nist.gov";
-
 uint16_t hour = 0;
 uint16_t minute = 0;
 int dst = 0;
@@ -60,7 +58,6 @@ typedef struct HttpAlarmParams {
 
 void setup() {
 	Serial.begin(115200);
-	delay(3000);
 	Serial.println("Setting up now");
 	pinMode(buzzerPin, OUTPUT);
 	pinMode(buttonPin, INPUT);
@@ -91,14 +88,15 @@ void setupWiFi() {
 
 void setupServer() {
 	Serial.println("Starting server...");
-	//server.begin();
-	simpleServer.begin();
+	server.begin();
+	//simpleServer.begin();
 	Serial.println("Server started");
 	Serial.println(WiFi.localIP());
 }
 
 void setupRest() {
 	Serial.println("Setting up REST server settings...");
+	/*
 	rest.set_id("esp001");
 	rest.set_name("EspAlarmClock");
 	rest.function("setbrightness", httpSetBrightness);
@@ -108,6 +106,166 @@ void setupRest() {
 	rest.function("alarmset", httpSetAlarm);
 	rest.variable("brightness", &matrixBrightnessStr);
 	setAlarmsRestVariable();
+	*/
+
+	server.on("/", []() {
+		server.send(200, "application/json", "{\"success\": true}");
+	});
+
+	server.on("/test", []() {
+		String message = "TEST\n\n";
+		message += "Arguments: ";
+		message += server.args();
+		message += "\n";
+		for (uint8_t i = 0; i < server.args(); i++) {
+			message += "  " + server.argName(i) + ": " + server.arg(i) + "\n";
+		}
+		server.send(200, "text/plain", message);
+	});
+
+	server.on("/brightness", []() {
+		if (server.method() == HTTP_GET) {
+			server.send(200, "application/json", "{\"brightness\": " + String(matrixBrightness) + "}");
+		} else {
+			String amount = server.arg("amount");
+			int b = amount.toInt();
+			if (b == 0 && amount != "0") {
+				server.send(400, "text/plain", "Bad Request");
+				return;
+			}
+			b = (b < 0 ? 0 : b > 15 ? 15 : b);
+			matrixBrightness = b;
+			matrix.setBrightness(b);
+			server.send(200, "application/json", "{\"brightness\": " + String(b) + "}");
+		}
+	});
+
+	server.on("/alarm/hour", []() {
+		String alarmIndexStr = server.arg("alarm");
+		int alarmIndex = alarmIndexStr.toInt();
+		if ((alarmIndex == 0 && alarmIndexStr != "0") || (alarmIndex < 0) || (alarmIndex >= NUM_ALARMS)) {
+			server.send(400, "text/plain", "Bad Request");
+			return;
+		}
+		Alarm* alarm = &alarms[alarmIndex];
+		if (server.method() == HTTP_GET) {
+			int hour = alarm->getHour();
+			server.send(200, "application/json", "{\"alarm\": " + String(alarmIndex) + ", \"hour\": " + String(hour) + "}");
+		} else {
+			String hourStr = server.arg("hour");
+			int hour = hourStr.toInt();
+			if (hour == 0 && hourStr != "0") {
+				server.send(400, "text/plain", "Bad Request");
+			} else {
+				hour = (hour < 0 ? 0 : hour > 23 ? 23 : hour);
+				alarm->setHour(hour);
+				alarm->save();
+				server.send(200, "application/json", "{\"alarm\": " + String(alarmIndex) + ", \"hour\": " + String(hour) + "}");
+			}
+		}
+	});
+
+	server.on("/alarm/minute", []() {
+		String alarmIndexStr = server.arg("alarm");
+		int alarmIndex = alarmIndexStr.toInt();
+		if ((alarmIndex == 0 && alarmIndexStr != "0") || (alarmIndex < 0) || (alarmIndex >= NUM_ALARMS)) {
+			server.send(400, "text/plain", "Bad Request");
+			return;
+		}
+		Alarm* alarm = &alarms[alarmIndex];
+		if (server.method() == HTTP_GET) {
+			int minute = alarm->getMinute();
+			server.send(200, "application/json", "{\"alarm\": " + String(alarmIndex) + ", \"minute\": " + String(minute) + "}");
+		} else {
+			String minuteStr = server.arg("minute");
+			int minute = minuteStr.toInt();
+			if (minute == 0 && minuteStr != "0") {
+				server.send(400, "text/plain", "Bad Request");
+			} else {
+				minute = (minute < 0 ? 0 : minute > 59 ? 59 : minute);
+				alarm->setMinute(minute);
+				alarm->save();
+				server.send(200, "application/json", "{\"alarm\": " + String(alarmIndex) + ", \"minute\": " + String(minute) + "}");
+			}
+		}
+	});
+
+	server.on("/alarm/enabled", []() {
+		String alarmIndexStr = server.arg("alarm");
+		int alarmIndex = alarmIndexStr.toInt();
+		if ((alarmIndex == 0 && alarmIndexStr != "0") || (alarmIndex < 0) || (alarmIndex >= NUM_ALARMS)) {
+			server.send(400, "text/plain", "Bad Request");
+			return;
+		}
+		Alarm* alarm = &alarms[alarmIndex];
+		if (server.method() == HTTP_GET) {
+			bool enabled = alarm->isEnabled();
+			String enabledStr = (enabled ? "true" : "false");
+			server.send(200, "application/json", "{\"alarm\": " + String(alarmIndex) + ", \"enabled\": " + enabledStr + "}");
+		} else {
+			String enabledStr = server.arg("enabled");
+			bool valid = (enabledStr == "true" || enabledStr == "false" || enabledStr == "0" || enabledStr == "1");
+			bool enabled = (enabledStr == "true" || enabledStr == "1");
+			if (!valid) {
+				server.send(400, "text/plain", "Bad Request");
+			} else {
+				alarm->setEnabled(enabled);
+				alarm->save();
+				enabledStr = (enabled ? "true" : "false");
+				server.send(200, "application/json", "{\"alarm\": " + String(alarmIndex) + ", \"enabled\": " + enabledStr + "}");
+			}
+		}
+	});
+
+	server.on("/alarm", []() {
+		String alarmIndexStr = server.arg("alarm");
+		int alarmIndex = alarmIndexStr.toInt();
+		if ((alarmIndex == 0 && alarmIndexStr != "0") || (alarmIndex < 0) || (alarmIndex >= NUM_ALARMS)) {
+			server.send(400, "text/plain", "Bad Request");
+			return;
+		}
+		Alarm* alarm = &alarms[alarmIndex];
+		if (server.method() == HTTP_GET) {
+			int hour = alarm->getHour();
+			int minute = alarm->getMinute();
+			bool enabled = alarm->isEnabled();
+			String enabledStr = (enabled ? "true" : "false");
+			server.send(200, "application/json", "{\"alarm\": " + String(alarmIndex) + ", \"hour\": " + String(hour) + ", \"minute\": " + String(minute) + ", \"enabled\": " + enabledStr + "}");
+		} else {
+			String hourStr = server.arg("hour");
+			int hour = hourStr.toInt();
+			String minuteStr = server.arg("minute");
+			int minute = minuteStr.toInt();
+			String enabledStr = server.arg("enabled");
+			bool enabledValid = (enabledStr == "true" || enabledStr == "false" || enabledStr == "0" || enabledStr == "1");
+			bool enabled = (enabledStr == "true" || enabledStr == "1");
+			if ((hour == 0 && hourStr != "0") || (minute == 0 && minuteStr != "0") || (!enabledValid)) {
+				server.send(400, "text/plain", "Bad Request");
+			} else {
+				hour = (hour < 0 ? 0 : hour > 23 ? 23 : hour);
+				minute = (minute < 0 ? 0 : minute > 59 ? 59 : minute);
+				enabledStr = (enabled ? "true" : "false");
+				alarm->setHour(hour);
+				alarm->setMinute(minute);
+				alarm->setEnabled(enabled);
+				alarm->save();
+				server.send(200, "application/json", "{\"alarm\": " + String(alarmIndex) + ", \"hour\": " + String(hour) + ", \"minute\": " + String(minute) + ", \"enabled\": " + enabledStr + "}");
+			}
+		}
+	});
+
+	server.on("/alarmcount", []() {
+		if (server.method() == HTTP_GET) {
+			server.send(200, "application/json", "{\"count\": " + String(NUM_ALARMS) + "}");
+		} else {
+			server.send(400, "text/plain", "Bad Request");
+		}
+	});
+
+	server.onNotFound([]() {
+		server.send(404, "text/plain", "File Not Found");
+	});
+
 	Serial.println("REST server settings set.");
 }
 
@@ -381,7 +539,8 @@ void loopServer() {
 
 	}
 	*/
-	simpleServer.handle();
+	//simpleServer.handle();
+	server.handleClient();
 }
 
 bool btnDown = false;
