@@ -9,20 +9,14 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <time.h>
-#include <aREST.h>
 #include "Alarm.h"
-#include "HttpRequest.h"
 #include "Network.h"
-#include "SimpleServer.h"
 // Network.h simply defines NETWORK_SSID and NETWORK_PSK
 
 const uint16_t SERVER_PORT = 80;
 
 Adafruit_7segment matrix = Adafruit_7segment();
-aREST rest = aREST();
 
-//WiFiServer server(SERVER_PORT);
-//SimpleServer simpleServer(SERVER_PORT);
 ESP8266WebServer server(SERVER_PORT);
 
 uint16_t hour = 0;
@@ -40,6 +34,8 @@ const unsigned long COLON_BLINK_INTERVAL_MILLIS = 500L;
 const int buzzerPin = 15;
 const int buttonPin = 13;
 
+bool btnDown = false;
+
 Alarm alarms[] = {
 //Alarm(memoryLocationStart)
 	Alarm(0),
@@ -47,7 +43,6 @@ Alarm alarms[] = {
 	Alarm(8)
 };
 
-String alarmsStr;
 const int NUM_ALARMS = sizeof(alarms) / sizeof(alarms[0]);
 
 typedef struct HttpAlarmParams {
@@ -89,24 +84,12 @@ void setupWiFi() {
 void setupServer() {
 	Serial.println("Starting server...");
 	server.begin();
-	//simpleServer.begin();
 	Serial.println("Server started");
 	Serial.println(WiFi.localIP());
 }
 
 void setupRest() {
 	Serial.println("Setting up REST server settings...");
-	/*
-	rest.set_id("esp001");
-	rest.set_name("EspAlarmClock");
-	rest.function("setbrightness", httpSetBrightness);
-	rest.function("alarmhour", httpSetAlarmHour);
-	rest.function("alarmminute", httpSetAlarmMinute);
-	rest.function("alarmenabled", httpSetAlarmEnabled);
-	rest.function("alarmset", httpSetAlarm);
-	rest.variable("brightness", &matrixBrightnessStr);
-	setAlarmsRestVariable();
-	*/
 
 	server.on("/", []() {
 		server.send(200, "application/json", "{\"success\": true}");
@@ -254,6 +237,25 @@ void setupRest() {
 		}
 	});
 
+	server.on("/alarms", []() {
+		if (server.method() == HTTP_GET) {
+			String message = "{\"alarms\": [";
+			for (int i = 0; i < NUM_ALARMS; i++) {
+				Alarm* alarm = &alarms[i];
+				String hour = String(alarm->getHour());
+				String min = String(alarm->getMinute());
+				String enabled = (alarm->isEnabled() ? "true" : "false");
+				String obj = "{\"alarm\":" + String(i) + ", \"hour\": " + hour + ", \"minute\": " + min + ", \"enabled\": " + enabled + "}";
+				if (i > 0) message += ", ";
+				message += obj;
+			}
+			message += "]}";
+			server.send(200, "application/json", message);
+		} else {
+			server.send(400, "text/plain", "Bad Request");
+		}
+	});
+
 	server.on("/alarmcount", []() {
 		if (server.method() == HTTP_GET) {
 			server.send(200, "application/json", "{\"count\": " + String(NUM_ALARMS) + "}");
@@ -263,178 +265,14 @@ void setupRest() {
 	});
 
 	server.onNotFound([]() {
-		server.send(404, "text/plain", "File Not Found");
+		server.send(404, "text/plain", "Resource Not Found");
 	});
 
 	Serial.println("REST server settings set.");
 }
 
-HttpAlarmParams getHttpAlarmParams(String params) {
-	// alarmIndex-value
-	// e.g.: 1-10
-	HttpAlarmParams alarmParams;
-	int dashIndex = params.indexOf("-");
-	if (dashIndex == -1) {
-		Serial.println("getHttpAlarmParams FAILED: Did not find dash in params string");
-		alarmParams.failed = true;
-		return alarmParams;
-	}
-	String alarmIndexStr = params.substring(0, dashIndex);
-	Serial.print("alarmIndexStr = ");
-	Serial.println(alarmIndexStr);
-	int value = params.substring(dashIndex + 1).toInt();
-	int alarmIndex = alarmIndexStr.toInt();
-	if ((alarmIndex == 0 && alarmIndexStr != "0") || (alarmIndex < 0) || (alarmIndex >= NUM_ALARMS)) {
-		Serial.print("getHttpAlarmParams FAILED: Invalid alarm index -> ");
-		Serial.println(alarmIndex);
-		alarmParams.failed = true;
-		return alarmParams;
-	}
-	alarmParams.value = value;
-	alarmParams.alarm = &alarms[alarmIndex];
-	return alarmParams;
-}
-
-int httpSetBrightness(String amount) {
-	Serial.print("HTTP SetBrightness: " + amount + ": ");
-	int b = amount.toInt();
-	if (b == 0 && amount != "0") return -1;
-	b = (b < 0 ? 0 : b > 15 ? 15 : b);
-	Serial.println(b);
-	matrix.setBrightness(b);
-	matrixBrightness = b;
-	matrixBrightnessStr = String(b);
-	rest.variable("brightness", &matrixBrightnessStr);
-	Serial.println("HTTP SetBrightness completed.");
-	return b;
-}
-
-//   /alarmhour?params=1-15  sets alarm at index '1' to 3pm
-int httpSetAlarmHour(String params) {
-	Serial.print("HTTP SetAlarmHour: ");
-	Serial.println(params);
-	HttpAlarmParams alarmParams = getHttpAlarmParams(params);
-	if (alarmParams.failed) {
-		Serial.println("HTTP SetAlarmHour failed");
-		return -1;
-	}
-	int hour = alarmParams.value;
-	hour = (hour < 0 ? 0 : hour > 23 ? 23 : hour);
-	alarmParams.alarm->setHour(hour);
-	alarmParams.alarm->save();
-	setAlarmsRestVariable();
-	return 0;
-}
-
-//   /alarmminute?params=0-35  sets alarm at index '0' to 35 minutes
-int httpSetAlarmMinute(String params) {
-	Serial.print("HTTP SetAlarmMinute: ");
-	Serial.println(params);
-	HttpAlarmParams alarmParams = getHttpAlarmParams(params);
-	if (alarmParams.failed) {
-		return -1;
-	}
-	int minute = alarmParams.value;
-	minute = (minute < 0 ? 0 : minute > 59 ? 59 : minute);
-	alarmParams.alarm->setMinute(minute);
-	alarmParams.alarm->save();
-	setAlarmsRestVariable();
-	return 0;
-}
-
-//   /alarmenabled?params=0-1  sets alarm at index '0' to ENABLED (0=disabled, 1=enabled)
-int httpSetAlarmEnabled(String params) {
-	Serial.print("HTTP SetAlarmEnabled: ");
-	Serial.println(params);
-	HttpAlarmParams alarmParams = getHttpAlarmParams(params);
-	if (alarmParams.failed) {
-		return -1;
-	}
-	bool enabled = (alarmParams.value == 1);
-	alarmParams.alarm->setEnabled(enabled);
-	alarmParams.alarm->save();
-	setAlarmsRestVariable();
-	return 0;
-}
-
-byte* getSeparatedList(char sep, String str) {
-	int numItems = 1;
-	int lastIndex = 0;
-	int index;
-	while ((index = str.indexOf(sep, lastIndex + 1)) != -1) {
-		numItems++;
-		lastIndex = index;
-	}
-	byte items[numItems];
-	lastIndex = -1;
-	index = 0;
-	int i = 0;
-	while ((index = str.indexOf(sep, lastIndex + 1)) != -1) {
-		Serial.println(" > " + str.substring(lastIndex + 1, index));
-		items[i] = str.substring(lastIndex + 1, index).toInt();
-		lastIndex = index;
-		i++;
-	}
-	items[i] = str.substring(lastIndex + 1).toInt();
-	return items;
-}
-
-void printValue(String label, int value) {
-	Serial.print(label);
-	Serial.println(value);
-}
-
-//   /alarmset?params=0-15-35-1   sets alarm 0 to 15 hours, 35 minutes, and enabled
-int httpSetAlarm(String params) {
-	// alarm-hour-minute-enabled
-	// 0-15-35-1
-	Serial.print("HTTP SetAlarm: ");
-	Serial.println(params);
-	byte *items = getSeparatedList('-', params);
-	if (sizeof(items) != 4) {
-		printValue("Incorrect number of items: ", sizeof(items));
-		return -1;
-	}
-	Serial.println("Getting items");
-	int alarmIndex = items[0];
-	int hour = items[1];
-	int minute = items[2];
-	int enabled = items[3];
-	printValue("alarmIndex: ", alarmIndex);
-	printValue("hour: ", hour);
-	printValue("minute: ", minute);
-	printValue("enabled: ", enabled);
-	if (alarmIndex < 0 || alarmIndex >= NUM_ALARMS) {
-		printValue("Invalid alarmIndex: ", alarmIndex);
-		return -1;
-	}
-	Serial.println("Transforming data");
-	hour = (hour < 0 ? 0 : hour > 23 ? 23 : hour);
-	minute = (minute < 0 ? 0 : minute > 59 ? 59 : minute);
-	Alarm *alarm = &alarms[alarmIndex];
-	alarm->setHour(hour);
-	alarm->setMinute(minute);
-	alarm->setEnabled(enabled == 1);
-	alarm->save();
-	setAlarmsRestVariable();
-	return 0;
-}
-
 void setBuzzer(int value) {
 	analogWrite(buzzerPin, value);
-}
-
-void setAlarmsRestVariable() {
-	alarmsStr = "";
-	for (int i = 0; i < NUM_ALARMS; i++) {
-		Alarm *alarm = &alarms[i];
-		alarmsStr += "alarm" + String(i) + ":" + String(alarm->getHour()) + "," + String(alarm->getMinute()) + "," + (alarm->isEnabled() ? "Y" : "N");
-		if (i != (NUM_ALARMS - 1)) {
-			alarmsStr += "|";
-		}
-	}
-	Serial.println(alarmsStr);
-	rest.variable("alarms", &alarmsStr);
 }
 
 void syncTime() {
@@ -521,29 +359,9 @@ void writeTime() {
 }
 
 void loopServer() {
-	/*
-	WiFiClient client = server.available();
-	if (client.available()) {
-
-		//rest.handle(client);
-
-		HttpRequest req(client);
-
-		String contentType = req.getHeaderValue("Content-Type");
-		Serial.print("Retrieved Content-Type: ");
-		Serial.println(contentType);
-
-		// TODO: Create HttpResponse class
-
-		client.flush();
-
-	}
-	*/
-	//simpleServer.handle();
 	server.handleClient();
 }
 
-bool btnDown = false;
 void loop() {
 	bool wasDown = btnDown;
 	btnDown = (digitalRead(buttonPin) == HIGH);
@@ -560,6 +378,5 @@ void loop() {
 		}
 	}
 	loopServer();
-	//Serial.println(ESP.getFreeHeap(), DEC);
 	delay(buzzing ? 10 : 100);
 }
