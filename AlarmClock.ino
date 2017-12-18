@@ -7,6 +7,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_LEDBackpack.h>
 #include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
 #include <time.h>
 #include <aREST.h>
 #include "Alarm.h"
@@ -21,7 +22,8 @@ Adafruit_7segment matrix = Adafruit_7segment();
 aREST rest = aREST();
 
 //WiFiServer server(SERVER_PORT);
-SimpleServer simpleServer(SERVER_PORT);
+//SimpleServer simpleServer(SERVER_PORT);
+ESP8266WebServer server(SERVER_PORT);
 
 const char* timeHost = "time.nist.gov";
 
