@@ -24,6 +24,8 @@ AlarmSoundFragment soundFragments[] = {
 	AlarmSoundFragment(255, 50),
 	AlarmSoundFragment(0, 50),
 	AlarmSoundFragment(255, 50),
+	AlarmSoundFragment(0, 50),
+	AlarmSoundFragment(255, 50),
 	AlarmSoundFragment(0, 300)
 };
 
