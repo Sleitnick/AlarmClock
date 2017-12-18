@@ -95,17 +95,6 @@ void setupRest() {
 		server.send(200, "application/json", "{\"success\": true}");
 	});
 
-	server.on("/test", []() {
-		String message = "TEST\n\n";
-		message += "Arguments: ";
-		message += server.args();
-		message += "\n";
-		for (uint8_t i = 0; i < server.args(); i++) {
-			message += "  " + server.argName(i) + ": " + server.arg(i) + "\n";
-		}
-		server.send(200, "text/plain", message);
-	});
-
 	server.on("/brightness", []() {
 		if (server.method() == HTTP_GET) {
 			server.send(200, "application/json", "{\"brightness\": " + String(matrixBrightness) + "}");
