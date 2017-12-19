@@ -7,6 +7,9 @@
  * making use of any given AlarmSoundFragments.
  */
 
+#ifndef ALARM_SOUND_H
+#define ALARM_SOUND_H
+
 #include <Arduino.h>
 #include <vector>
 #include "AlarmSoundFragment.h"
@@ -23,3 +26,4 @@ class AlarmSound {
 		void reset();
 };
 
+#endif

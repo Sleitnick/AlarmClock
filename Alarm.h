@@ -9,6 +9,9 @@
  * alarm time is persistent using EEPROM.
  */
 
+#ifndef ALARM_H
+#define ALARM_H
+
 #include <Arduino.h>
 #include "AlarmSound.h"
 
@@ -36,3 +39,4 @@ class Alarm {
 		void save();
 };
 
+#endif

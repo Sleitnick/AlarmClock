@@ -12,4 +12,3 @@
 AlarmSoundFragment::AlarmSoundFragment(int toneValue, int toneDuration) : value(toneValue), duration(toneDuration) {
 	
 }
-

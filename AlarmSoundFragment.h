@@ -7,6 +7,9 @@
  * says "play this tone value for this long"
  */
 
+#ifndef ALARM_SOUND_FRAGMENT_H
+#define ALARM_SOUND_FRAGMENT_H
+
 class AlarmSoundFragment {
 	public:
 		const int value;
@@ -14,3 +17,4 @@ class AlarmSoundFragment {
 		AlarmSoundFragment(int toneValue, int toneDuration);
 };
 
+#endif

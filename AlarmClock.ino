@@ -3,7 +3,6 @@
  * Date: November 2017
  */
 
-#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_LEDBackpack.h>
 #include <ESP8266WiFi.h>
@@ -53,9 +52,8 @@ typedef struct HttpAlarmParams {
 
 void setup() {
 	Serial.begin(115200);
-	Serial.println("Setting up now");
 	pinMode(buzzerPin, OUTPUT);
-	pinMode(buttonPin, INPUT);
+	pinMode(buttonPin, INPUT_PULLUP);
 	setupMatrixDisplay();
 	setupRest();
 	setupWiFi();
@@ -64,11 +62,9 @@ void setup() {
 }
 
 void setupMatrixDisplay() {
-	Serial.println("Setting up matrix display...");
 	matrix.begin(0x70);
 	matrix.setBrightness(matrixBrightness);
 	clearScreen();
-	Serial.println("Matrix display ready.");
 }
 
 void setupWiFi() {
@@ -76,20 +72,17 @@ void setupWiFi() {
 	WiFi.begin(NETWORK_SSID, NETWORK_PSK);
 	while (WiFi.status() != WL_CONNECTED) {
 		Serial.print(".");
-		delay(1000);
+		delay(250);
 	}
 	Serial.println("\nConnected to LAN.");
 }
 
 void setupServer() {
-	Serial.println("Starting server...");
 	server.begin();
-	Serial.println("Server started");
 	Serial.println(WiFi.localIP());
 }
 
 void setupRest() {
-	Serial.println("Setting up REST server settings...");
 
 	server.on("/", []() {
 		server.send(200, "application/json", "{\"success\": true}");
@@ -257,7 +250,6 @@ void setupRest() {
 		server.send(404, "text/plain", "Resource Not Found");
 	});
 
-	Serial.println("REST server settings set.");
 }
 
 void setBuzzer(int value) {
@@ -268,11 +260,8 @@ void syncTime() {
 	Serial.println("Syncing time...");
 
 	configTime(timezone * 3600, dst * 0, "pool.ntp.org", "time.nist.gov");
-	Serial.println("Waiting for time...");
-	while (!time(nullptr)) {
-		delay(10);
-	}
 
+	while (!time(nullptr)) delay(10);
 	updateTime(true);
 
 	Serial.println("Time synced.");
